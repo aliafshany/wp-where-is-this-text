@@ -6,6 +6,8 @@ This plugin closes that gap. Paste a line you can see on the front end, and it t
 
 It is strictly read-only. It never changes anything.
 
+**[نسخهٔ فارسی — README.fa.md](README.fa.md)**
+
 ---
 
 ## The problem
