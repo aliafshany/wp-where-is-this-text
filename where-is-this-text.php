@@ -3,7 +3,7 @@
  * Plugin Name:       Where Is This Text
  * Plugin URI:        https://github.com/aliafshany/wp-where-is-this-text
  * Description:       Paste a piece of text you can see on your site and get told exactly which admin screen edits it — including widgets, theme options, term meta and Elementor layouts. Read-only.
- * Version:           1.0.0
+ * Version:           1.0.1
  * Requires at least: 5.6
  * Requires PHP:      7.4
  * License:           MIT
@@ -53,13 +53,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /** Maximum rows fetched per source, per needle variant. */
-const WIT_LIMIT = 40;
+const WHERETEXT_LIMIT = 40;
 
 /** Needles shorter than this are refused; they match everything. */
-const WIT_MIN_CHARS = 3;
+const WHERETEXT_MIN_CHARS = 3;
 
 /** Characters of context shown either side of a match. */
-const WIT_CONTEXT = 55;
+const WHERETEXT_CONTEXT = 55;
 
 /**
  * Register the screen under Tools.
@@ -78,7 +78,7 @@ if ( is_admin() ) {
 				__( 'Where is this text?', 'where-is-this-text' ),
 				'manage_options',
 				'where-is-this-text',
-				'wit_render_screen'
+				'wheretext_render_screen'
 			);
 		}
 	);
@@ -90,7 +90,7 @@ if ( is_admin() ) {
  * @param string $needle Raw text typed by the user.
  * @return string[] Distinct strings to LIKE-match.
  */
-function wit_variants( $needle ) {
+function wheretext_variants( $needle ) {
 	$needle = trim( $needle );
 
 	// Use only the first non-empty line. Pasting several paragraphs otherwise
@@ -135,7 +135,7 @@ function wit_variants( $needle ) {
 	 * @param string[] $variants Strings that will be LIKE-matched.
 	 * @param string   $needle   The single line the user actually typed.
 	 */
-	$variants = apply_filters( 'wit_variants', $variants, $needle );
+	$variants = apply_filters( 'wheretext_variants', $variants, $needle );
 
 	return array_values( array_unique( array_filter( (array) $variants, 'strlen' ) ) );
 }
@@ -149,7 +149,7 @@ function wit_variants( $needle ) {
  * @param string[] $variants Needles to look for.
  * @return string HTML-escaped snippet.
  */
-function wit_snippet( $value, $variants ) {
+function wheretext_snippet( $value, $variants ) {
 	if ( ! is_string( $value ) ) {
 		// maybe_serialize() passes null, ints and bools straight through, so a
 		// second cast is needed before the mb_* calls below.
@@ -172,11 +172,11 @@ function wit_snippet( $value, $variants ) {
 	}
 
 	if ( false === $pos ) {
-		return esc_html( mb_substr( $value, 0, WIT_CONTEXT * 2, 'UTF-8' ) ) . '…';
+		return esc_html( mb_substr( $value, 0, WHERETEXT_CONTEXT * 2, 'UTF-8' ) ) . '…';
 	}
 
-	$start  = max( 0, $pos - WIT_CONTEXT );
-	$length = mb_strlen( $hit, 'UTF-8' ) + ( WIT_CONTEXT * 2 );
+	$start  = max( 0, $pos - WHERETEXT_CONTEXT );
+	$length = mb_strlen( $hit, 'UTF-8' ) + ( WHERETEXT_CONTEXT * 2 );
 	$out    = mb_substr( $value, $start, $length, 'UTF-8' );
 
 	return ( $start > 0 ? '…' : '' ) . esc_html( $out ) . '…';
@@ -191,7 +191,7 @@ function wit_snippet( $value, $variants ) {
  * @param int      $like_count   How many %s placeholders the template carries.
  * @return array Merged rows.
  */
-function wit_query( $sql_template, $variants, $key, $like_count = 1 ) {
+function wheretext_query( $sql_template, $variants, $key, $like_count = 1 ) {
 	global $wpdb;
 
 	$rows = array();
@@ -199,13 +199,13 @@ function wit_query( $sql_template, $variants, $key, $like_count = 1 ) {
 		// The cap is on the MERGED set, not per variant. Without this a search
 		// with four variants could pull four times the limit, and the rows are
 		// page-builder payloads that run to hundreds of KB each.
-		if ( count( $rows ) >= WIT_LIMIT ) {
+		if ( count( $rows ) >= WHERETEXT_LIMIT ) {
 			break;
 		}
 
 		$like   = '%' . $wpdb->esc_like( $variant ) . '%';
 		$args   = array_fill( 0, (int) $like_count, $like );
-		$args[] = WIT_LIMIT;
+		$args[] = WHERETEXT_LIMIT;
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql_template is a literal at every call site; all user input arrives through $args.
 		$found = $wpdb->get_results( $wpdb->prepare( $sql_template, $args ) );
@@ -214,7 +214,7 @@ function wit_query( $sql_template, $variants, $key, $like_count = 1 ) {
 		}
 	}
 
-	return array_slice( array_values( $rows ), 0, WIT_LIMIT );
+	return array_slice( array_values( $rows ), 0, WHERETEXT_LIMIT );
 }
 
 /**
@@ -224,7 +224,7 @@ function wit_query( $sql_template, $variants, $key, $like_count = 1 ) {
  * @param string $taxonomy Taxonomy name.
  * @return string
  */
-function wit_term_link( $term_id, $taxonomy ) {
+function wheretext_term_link( $term_id, $taxonomy ) {
 	if ( ! $taxonomy ) {
 		return '';
 	}
@@ -239,7 +239,7 @@ function wit_term_link( $term_id, $taxonomy ) {
  * @param int $post_id Post ID.
  * @return string
  */
-function wit_post_link( $post_id ) {
+function wheretext_post_link( $post_id ) {
 	$link = get_edit_post_link( (int) $post_id, '' );
 
 	return is_string( $link ) ? $link : '';
@@ -251,7 +251,7 @@ function wit_post_link( $post_id ) {
  * @param int $post_id Post ID.
  * @return bool
  */
-function wit_is_elementor( $post_id ) {
+function wheretext_is_elementor( $post_id ) {
 	return 'builder' === get_post_meta( (int) $post_id, '_elementor_edit_mode', true );
 }
 
@@ -265,10 +265,10 @@ function wit_is_elementor( $post_id ) {
  * @param string[] $variants Needles, used to pin down which widget instance matched.
  * @return array<int,array<string,mixed>>
  */
-function wit_locate_option( $name, $variants ) {
+function wheretext_locate_option( $name, $variants ) {
 	// Widgets: resolve every matching instance and the sidebar each sits in.
 	if ( preg_match( '/^widget_(.+)$/', $name, $matches ) ) {
-		return wit_locate_widget( $name, $matches[1], $variants );
+		return wheretext_locate_widget( $name, $matches[1], $variants );
 	}
 
 	if ( 0 === strpos( $name, 'theme_mods_' ) ) {
@@ -306,7 +306,7 @@ function wit_locate_option( $name, $variants ) {
 	 * point that option at their own settings page from here.
 	 *
 	 * Example:
-	 *     add_filter( 'wit_option_location', function ( $location, $name ) {
+	 *     add_filter( 'wheretext_option_location', function ( $location, $name ) {
 	 *         if ( 'my_theme_options' === $name ) {
 	 *             $location['what']  = 'Theme options';
 	 *             $location['where'] = 'Dashboard → Theme Settings';
@@ -319,7 +319,7 @@ function wit_locate_option( $name, $variants ) {
 	 * @param string   $name     Option name.
 	 * @param string[] $variants Search variants.
 	 */
-	$location = apply_filters( 'wit_option_location', $location, $name, $variants );
+	$location = apply_filters( 'wheretext_option_location', $location, $name, $variants );
 
 	return array( $location );
 }
@@ -336,7 +336,7 @@ function wit_locate_option( $name, $variants ) {
  * @param string[] $variants    Needles.
  * @return array<int,array<string,mixed>>
  */
-function wit_locate_widget( $option_name, $base, $variants ) {
+function wheretext_locate_widget( $option_name, $base, $variants ) {
 	global $wp_registered_sidebars;
 
 	$instances = get_option( $option_name );
@@ -396,7 +396,7 @@ function wit_locate_widget( $option_name, $base, $variants ) {
 				'what'    => $label . ' (' . $widget_id . ')',
 				'where'   => __( 'Sitting in “Inactive widgets” — not shown anywhere on the site. This is an old copy; you probably want the other one.', 'where-is-this-text' ),
 				'url'     => $url,
-				'snippet' => wit_snippet( $body, $variants ),
+				'snippet' => wheretext_snippet( $body, $variants ),
 				'rank'    => 9,
 			);
 			continue;
@@ -411,7 +411,7 @@ function wit_locate_widget( $option_name, $base, $variants ) {
 			/* translators: %s: sidebar name. */
 			'where'   => sprintf( __( 'Live on the site. Appearance → Widgets, in area: %s', 'where-is-this-text' ), $area_name ),
 			'url'     => $url,
-			'snippet' => wit_snippet( $body, $variants ),
+			'snippet' => wheretext_snippet( $body, $variants ),
 			'rank'    => 0,
 		);
 	}
@@ -425,7 +425,7 @@ function wit_locate_widget( $option_name, $base, $variants ) {
  * @param string[] $variants Needles.
  * @return array<int,array<string,mixed>> Result rows.
  */
-function wit_search( $variants ) {
+function wheretext_search( $variants ) {
 	global $wpdb;
 
 	if ( empty( $variants ) ) {
@@ -436,7 +436,7 @@ function wit_search( $variants ) {
 	$seen_elementor = array(); // Post IDs already reported as an Elementor page.
 
 	// ---- posts, pages, custom post types ---------------------------------
-	$rows = wit_query(
+	$rows = wheretext_query(
 		"SELECT ID, post_type, post_status, post_title,
 		        LEFT( post_content, 65535 ) AS post_content, post_excerpt
 		 FROM {$wpdb->posts}
@@ -453,7 +453,7 @@ function wit_search( $variants ) {
 	foreach ( $rows as $row ) {
 		$type_object  = get_post_type_object( $row->post_type );
 		$label        = $type_object ? $type_object->labels->singular_name : $row->post_type;
-		$is_elementor = wit_is_elementor( $row->ID );
+		$is_elementor = wheretext_is_elementor( $row->ID );
 
 		if ( $is_elementor ) {
 			$seen_elementor[ (int) $row->ID ] = true;
@@ -467,8 +467,8 @@ function wit_search( $variants ) {
 				: sprintf( __( 'The %1$s editor (status: %2$s)', 'where-is-this-text' ), $label, $row->post_status ),
 			'url'     => $is_elementor
 				? admin_url( 'post.php?post=' . (int) $row->ID . '&action=elementor' )
-				: wit_post_link( $row->ID ),
-			'snippet' => wit_snippet( $row->post_content . ' ' . $row->post_title . ' ' . $row->post_excerpt, $variants ),
+				: wheretext_post_link( $row->ID ),
+			'snippet' => wheretext_snippet( $row->post_content . ' ' . $row->post_title . ' ' . $row->post_excerpt, $variants ),
 			'rank'    => 0,
 		);
 	}
@@ -476,7 +476,7 @@ function wit_search( $variants ) {
 	// ---- post meta (where page-builder layouts live) ----------------------
 	// Elementor keeps a full copy of the layout on every revision, so without
 	// the join below a search returns revision rows that cannot be edited.
-	$rows = wit_query(
+	$rows = wheretext_query(
 		"SELECT pm.meta_id, pm.post_id, pm.meta_key,
 		        LEFT( pm.meta_value, 65535 ) AS meta_value
 		 FROM {$wpdb->postmeta} pm
@@ -504,7 +504,7 @@ function wit_search( $variants ) {
 				'what'    => sprintf( __( 'Elementor content on #%1$d — %2$s', 'where-is-this-text' ), (int) $row->post_id, $title ),
 				'where'   => __( 'Edited in Elementor, not in the WordPress editor. The text lives inside an Elementor widget.', 'where-is-this-text' ),
 				'url'     => admin_url( 'post.php?post=' . (int) $row->post_id . '&action=elementor' ),
-				'snippet' => wit_snippet( $row->meta_value, $variants ),
+				'snippet' => wheretext_snippet( $row->meta_value, $variants ),
 				'rank'    => 0,
 			);
 			continue;
@@ -514,14 +514,14 @@ function wit_search( $variants ) {
 			/* translators: 1: meta key, 2: post ID, 3: post title. */
 			'what'    => sprintf( __( 'Custom field %1$s on #%2$d — %3$s', 'where-is-this-text' ), $row->meta_key, (int) $row->post_id, $title ),
 			'where'   => __( 'On that item’s edit screen — usually a metabox lower down the page, or inside the settings of the plugin that owns the field.', 'where-is-this-text' ),
-			'url'     => wit_post_link( $row->post_id ),
-			'snippet' => wit_snippet( $row->meta_value, $variants ),
+			'url'     => wheretext_post_link( $row->post_id ),
+			'snippet' => wheretext_snippet( $row->meta_value, $variants ),
 			'rank'    => 3,
 		);
 	}
 
 	// ---- options (widgets, theme settings, plugin settings) ---------------
-	$rows = wit_query(
+	$rows = wheretext_query(
 		// Transients are excluded in SQL, not afterwards in PHP: filtering after
 		// the LIMIT lets cached transient rows eat the whole row budget and hide
 		// the real widget or theme-option row. The %% is a literal % inside prepare().
@@ -538,9 +538,9 @@ function wit_search( $variants ) {
 	);
 
 	foreach ( $rows as $row ) {
-		foreach ( wit_locate_option( $row->option_name, $variants ) as $location ) {
+		foreach ( wheretext_locate_option( $row->option_name, $variants ) as $location ) {
 			if ( empty( $location['snippet'] ) ) {
-				$location['snippet'] = wit_snippet( $row->option_value, $variants );
+				$location['snippet'] = wheretext_snippet( $row->option_value, $variants );
 			}
 			if ( ! isset( $location['rank'] ) ) {
 				$location['rank'] = 1;
@@ -550,7 +550,7 @@ function wit_search( $variants ) {
 	}
 
 	// ---- term meta --------------------------------------------------------
-	$rows = wit_query(
+	$rows = wheretext_query(
 		"SELECT tm.meta_id, tm.term_id, tm.meta_key,
 		        LEFT( tm.meta_value, 65535 ) AS meta_value, tt.taxonomy
 		 FROM {$wpdb->termmeta} tm
@@ -570,14 +570,14 @@ function wit_search( $variants ) {
 			/* translators: 1: term name, 2: meta key. */
 			'what'    => sprintf( __( 'Term “%1$s” — field %2$s', 'where-is-this-text' ), $name, $row->meta_key ),
 			'where'   => __( 'The edit screen of that category, tag or term. A custom field there, not the standard description box.', 'where-is-this-text' ),
-			'url'     => wit_term_link( (int) $row->term_id, (string) $row->taxonomy ),
-			'snippet' => wit_snippet( $row->meta_value, $variants ),
+			'url'     => wheretext_term_link( (int) $row->term_id, (string) $row->taxonomy ),
+			'snippet' => wheretext_snippet( $row->meta_value, $variants ),
 			'rank'    => 2,
 		);
 	}
 
 	// ---- term names and descriptions --------------------------------------
-	$rows = wit_query(
+	$rows = wheretext_query(
 		"SELECT tt.term_taxonomy_id, tt.term_id, tt.taxonomy, tt.description, t.name
 		 FROM {$wpdb->term_taxonomy} tt
 		 INNER JOIN {$wpdb->terms} t ON t.term_id = tt.term_id
@@ -594,8 +594,8 @@ function wit_search( $variants ) {
 			/* translators: 1: term name, 2: taxonomy name. */
 			'what'    => sprintf( __( 'Name or description of “%1$s” (%2$s)', 'where-is-this-text' ), $row->name, $row->taxonomy ),
 			'where'   => __( 'The edit screen of that category, tag or term.', 'where-is-this-text' ),
-			'url'     => wit_term_link( (int) $row->term_id, (string) $row->taxonomy ),
-			'snippet' => wit_snippet( $row->description . ' ' . $row->name, $variants ),
+			'url'     => wheretext_term_link( (int) $row->term_id, (string) $row->taxonomy ),
+			'snippet' => wheretext_snippet( $row->description . ' ' . $row->name, $variants ),
 			'rank'    => 2,
 		);
 	}
@@ -606,7 +606,7 @@ function wit_search( $variants ) {
 	 * @param array    $results  Result rows.
 	 * @param string[] $variants Search variants.
 	 */
-	$results = apply_filters( 'wit_results', $results, $variants );
+	$results = apply_filters( 'wheretext_results', $results, $variants );
 
 	// Live, editable things first; inactive leftovers last.
 	usort(
@@ -641,14 +641,14 @@ function wit_search( $variants ) {
  * @param string $needle Raw text typed by the user.
  * @return array{0:array,1:string,2:bool} Results, the phrase that matched, whether it was narrowed.
  */
-function wit_search_progressive( $needle ) {
-	$variants = wit_variants( $needle );
+function wheretext_search_progressive( $needle ) {
+	$variants = wheretext_variants( $needle );
 	if ( ! $variants ) {
 		return array( array(), '', false );
 	}
 
 	$full    = $variants[0];
-	$results = wit_search( $variants );
+	$results = wheretext_search( $variants );
 	if ( $results ) {
 		return array( $results, $full, false );
 	}
@@ -666,10 +666,10 @@ function wit_search_progressive( $needle ) {
 	for ( $take = $total - 1; $take >= 2 && $attempts < 12; $take-- ) {
 		$attempts++;
 		$try = implode( ' ', array_slice( $words, 0, $take ) );
-		if ( mb_strlen( $try, 'UTF-8' ) < WIT_MIN_CHARS ) {
+		if ( mb_strlen( $try, 'UTF-8' ) < WHERETEXT_MIN_CHARS ) {
 			break;
 		}
-		$found = wit_search( wit_variants( $try ) );
+		$found = wheretext_search( wheretext_variants( $try ) );
 		if ( $found ) {
 			return array( $found, $try, true );
 		}
@@ -678,10 +678,10 @@ function wit_search_progressive( $needle ) {
 	for ( $skip = 1; $skip <= $total - 2 && $attempts < 24; $skip++ ) {
 		$attempts++;
 		$try = implode( ' ', array_slice( $words, $skip ) );
-		if ( mb_strlen( $try, 'UTF-8' ) < WIT_MIN_CHARS ) {
+		if ( mb_strlen( $try, 'UTF-8' ) < WHERETEXT_MIN_CHARS ) {
 			break;
 		}
-		$found = wit_search( wit_variants( $try ) );
+		$found = wheretext_search( wheretext_variants( $try ) );
 		if ( $found ) {
 			return array( $found, $try, true );
 		}
@@ -693,7 +693,7 @@ function wit_search_progressive( $needle ) {
 /**
  * The admin screen.
  */
-function wit_render_screen() {
+function wheretext_render_screen() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		wp_die( esc_html__( 'Sorry, you are not allowed to access this page.', 'where-is-this-text' ) );
 	}
@@ -703,25 +703,25 @@ function wit_render_screen() {
 	$notice   = '';
 	$narrowed = '';
 
-	if ( isset( $_POST['wit_needle'] ) && check_admin_referer( 'wit_search' ) ) {
-		$raw = wp_unslash( $_POST['wit_needle'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitised -- used only as a prepared LIKE value and escaped on output.
-		$needle = is_string( $raw ) ? trim( $raw ) : '';
+	if ( isset( $_POST['wheretext_needle'] ) && check_admin_referer( 'wheretext_search' ) ) {
+		$raw    = wp_unslash( $_POST['wheretext_needle'] );
+		$needle = is_string( $raw ) ? trim( sanitize_text_field( $raw ) ) : '';
 
 		// Measure the line that will actually be searched, not the whole paste.
-		// wit_variants() keeps only the first non-empty line, so "a\nfoobar"
+		// wheretext_variants() keeps only the first non-empty line, so "a\nfoobar"
 		// would otherwise pass the length check and then run LIKE '%a%' across
 		// every table.
-		$variants = wit_variants( $needle );
+		$variants = wheretext_variants( $needle );
 		$first    = $variants ? $variants[0] : '';
 
-		if ( mb_strlen( $first, 'UTF-8' ) < WIT_MIN_CHARS ) {
+		if ( mb_strlen( $first, 'UTF-8' ) < WHERETEXT_MIN_CHARS ) {
 			$notice = sprintf(
 				/* translators: %d: minimum number of characters. */
 				__( 'That search is too short. Use at least %d characters on the first line.', 'where-is-this-text' ),
-				WIT_MIN_CHARS
+				WHERETEXT_MIN_CHARS
 			);
 		} else {
-			list( $results, $matched, $was_narrowed ) = wit_search_progressive( $needle );
+			list( $results, $matched, $was_narrowed ) = wheretext_search_progressive( $needle );
 			if ( $was_narrowed ) {
 				$narrowed = $matched;
 			}
@@ -745,9 +745,9 @@ function wit_render_screen() {
 		<?php endif; ?>
 
 		<form method="post">
-			<?php wp_nonce_field( 'wit_search' ); ?>
+			<?php wp_nonce_field( 'wheretext_search' ); ?>
 			<p>
-				<input type="text" name="wit_needle" class="regular-text" style="width:100%;max-width:760px;"
+				<input type="text" name="wheretext_needle" class="regular-text" style="width:100%;max-width:760px;"
 					value="<?php echo esc_attr( $needle ); ?>" />
 			</p>
 			<p><?php submit_button( __( 'Find it', 'where-is-this-text' ), 'primary', 'submit', false ); ?></p>
@@ -794,7 +794,7 @@ function wit_render_screen() {
 							<td><?php echo esc_html( isset( $result['where'] ) ? $result['where'] : '' ); ?></td>
 							<td style="font-size:12px;color:#555;">
 								<?php
-								// Escaped inside wit_snippet(); echoed raw so the ellipses render.
+								// Escaped inside wheretext_snippet(); echoed raw so the ellipses render.
 								echo isset( $result['snippet'] ) ? $result['snippet'] : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 								?>
 							</td>

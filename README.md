@@ -134,7 +134,7 @@ Three filters, if you need them:
 ```php
 // Point an option at your own theme's settings page.
 // Many themes keep every setting in one serialised option.
-add_filter( 'wit_option_location', function ( $location, $name ) {
+add_filter( 'wheretext_option_location', function ( $location, $name ) {
     if ( 'my_theme_options' === $name ) {
         $location['what']  = 'Theme options';
         $location['where'] = 'Dashboard → Theme Settings';
@@ -144,13 +144,13 @@ add_filter( 'wit_option_location', function ( $location, $name ) {
 }, 10, 2 );
 
 // Add your own look-alike character normalisation or transliteration.
-add_filter( 'wit_variants', function ( $variants, $needle ) {
+add_filter( 'wheretext_variants', function ( $variants, $needle ) {
     $variants[] = str_replace( 'ß', 'ss', $needle );
     return $variants;
 }, 10, 2 );
 
 // Post-process or add to the result set.
-add_filter( 'wit_results', function ( $results, $variants ) {
+add_filter( 'wheretext_results', function ( $results, $variants ) {
     return $results;
 }, 10, 2 );
 ```

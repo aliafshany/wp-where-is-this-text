@@ -138,7 +138,7 @@ wp plugin install https://github.com/aliafshany/wp-where-is-this-text/archive/re
 ```php
 // یک option را به صفحهٔ تنظیمات قالب خودتان وصل کنید.
 // خیلی از قالب‌ها همهٔ تنظیمات را در یک option سریالایزشده نگه می‌دارند.
-add_filter( 'wit_option_location', function ( $location, $name ) {
+add_filter( 'wheretext_option_location', function ( $location, $name ) {
     if ( 'my_theme_options' === $name ) {
         $location['what']  = 'تنظیمات قالب';
         $location['where'] = 'پیشخوان ← تنظیمات قالب';
@@ -148,13 +148,13 @@ add_filter( 'wit_option_location', function ( $location, $name ) {
 }, 10, 2 );
 
 // نرمال‌سازی حروف هم‌شکل خودتان را اضافه کنید.
-add_filter( 'wit_variants', function ( $variants, $needle ) {
+add_filter( 'wheretext_variants', function ( $variants, $needle ) {
     $variants[] = str_replace( 'أ', 'ا', $needle );
     return $variants;
 }, 10, 2 );
 
 // روی نتیجه‌ها پردازش اضافه انجام دهید.
-add_filter( 'wit_results', function ( $results, $variants ) {
+add_filter( 'wheretext_results', function ( $results, $variants ) {
     return $results;
 }, 10, 2 );
 ```
